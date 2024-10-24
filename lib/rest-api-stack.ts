@@ -3,6 +3,7 @@ import * as lambdanode from "aws-cdk-lib/aws-lambda-nodejs";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as custom from "aws-cdk-lib/custom-resources";
+import * as apig from "aws-cdk-lib/aws-apigateway";
 import { Construct } from "constructs";
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 import { generateBatch } from "../shared/util";
@@ -73,6 +74,32 @@ export class RestAPIStack extends cdk.Stack {
         // Permissions 
         moviesTable.grantReadData(getMovieByIdFn)
         moviesTable.grantReadData(getAllMoviesFn)
+
+        // API Gateway
+        const api = new apig.RestApi(this, "RestApi", {
+          description: "demo api",
+          deployOptions: {
+            stageName: "dev",
+          },
+          defaultCorsPreflightOptions: {
+            allowHeaders: ["Content-Type", "X-Amz-Date"],
+            allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+            allowCredentials: true,
+            allowOrigins: ["*"],
+          },
+        });
+
+        const moviesEndpoint = api.root.addResource("movies");
+        moviesEndpoint.addMethod(
+          "GET", 
+          new apig.LambdaIntegration(getAllMoviesFn, {proxy: true})
+        );
+
+        const movieEndpoint = moviesEndpoint.addResource("{movieId}");
+        movieEndpoint.addMethod(
+          "GET", 
+          new apig.LambdaIntegration(getMovieByIdFn, {proxy: true})
+        );
         
         
       }
