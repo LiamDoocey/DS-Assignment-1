@@ -7,7 +7,7 @@ import * as apig from "aws-cdk-lib/aws-apigateway";
 import { Construct } from "constructs";
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 import { generateBatch } from "../shared/util";
-import { movies } from "../seed/movies";
+import { movies, movieCasts } from "../seed/movies";
 
 export class RestAPIStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -19,6 +19,19 @@ export class RestAPIStack extends cdk.Stack {
       partitionKey: { name: "id", type: dynamodb.AttributeType.NUMBER },
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       tableName: "Movies",
+    });
+
+    const movieCastTable = new dynamodb.Table(this, "MovieCastTable", {
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      partitionKey: { name: "movieId", type: dynamodb.AttributeType.NUMBER },
+      sortKey: { name: "actorName", type: dynamodb.AttributeType.STRING },
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      tableName: "MovieCast",
+    });
+
+    movieCastTable.addLocalSecondaryIndex({
+      indexName: "roleIx",
+      sortKey: { name: "roleName", type: dynamodb.AttributeType.STRING },
     });
 
     
@@ -78,6 +91,18 @@ export class RestAPIStack extends cdk.Stack {
             REGION: 'eu-west-1',
           },
         });
+
+        const getMovieCastMembersFn = new lambdanode.NodejsFunction(this, "GetMoviesCastMembersFn", {
+          architecture: lambda.Architecture.ARM_64,
+          runtime: lambda.Runtime.NODEJS_18_X,
+          entry: `${__dirname}/../lambdas/getMovieCastMember.ts`,
+          timeout: cdk.Duration.seconds(10),
+          memorySize: 128,
+          environment: {
+            TABLE_NAME: movieCastTable.tableName,
+            REGION: 'eu-west-1',
+          },  
+        });
         
         new custom.AwsCustomResource(this, "moviesddbInitData", {
           onCreate: {
@@ -86,12 +111,13 @@ export class RestAPIStack extends cdk.Stack {
             parameters: {
               RequestItems: {
                 [moviesTable.tableName]: generateBatch(movies),
+                [movieCastTable.tableName]: generateBatch(movieCasts),
               },
             },
             physicalResourceId: custom.PhysicalResourceId.of("moviesddbInitData"), //.of(Date.now().toString()),
           },
           policy: custom.AwsCustomResourcePolicy.fromSdkCalls({
-            resources: [moviesTable.tableArn],
+            resources: [moviesTable.tableArn, movieCastTable.tableArn],
           }),
         });
         
@@ -100,6 +126,7 @@ export class RestAPIStack extends cdk.Stack {
         moviesTable.grantReadData(getAllMoviesFn)
         moviesTable.grantReadWriteData(newMovieFn)
         moviesTable.grantReadWriteData(removeMovieFn)
+        movieCastTable.grantReadData(getMovieCastMembersFn)
 
         // API Gateway
         const api = new apig.RestApi(this, "RestApi", {
@@ -136,8 +163,12 @@ export class RestAPIStack extends cdk.Stack {
           "DELETE", 
           new apig.LambdaIntegration(removeMovieFn, {proxy: true})
         );
-        
-        
+
+        const movieCastEndpoint = moviesEndpoint.addResource("cast");
+        movieCastEndpoint.addMethod(
+          "GET", 
+          new apig.LambdaIntegration(getMovieCastMembersFn, {proxy: true})
+        );
       }
     }
     
