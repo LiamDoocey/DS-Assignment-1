@@ -32,7 +32,8 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
     };
 
     if (reviewId) {
-        commandParams.Key.reviewId = parseInt(reviewId);
+        commandParams.KeyConditionExpression += " AND reviewId = :reviewId";
+        commandParams.ExpressionAttributeValues[":reviewId"] = parseInt(reviewId);
     }
 
     const commandOutput = await ddbDocClient.send(
