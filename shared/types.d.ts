@@ -31,8 +31,8 @@ export type MovieCastMemberQueryParams = {
 };
 
 export type Review = {
-  movieId: number;
-  reviewId: number;
+  movieId?: number;
+  reviewId?: string;
   reviewerName: string;
   review: string;
   rating: number;

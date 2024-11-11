@@ -177,29 +177,29 @@ export const movieCasts: MovieCast[] = [
 
 export const reviews: Review[] = [
   {
-    movieId: 12345,
-    reviewId: 1,
+    movieId: 1234,
+    reviewId: "12",
     reviewerName: "Joe Bloggs",
     review: "This is a great movie",
     rating: 5,
   },
   {
     movieId: 1234,
-    reviewId: 2,
+    reviewId: "7",
     reviewerName: "Alice Broggs",
     review: "This is a terrible movie",
     rating: 1,
   },
   {
     movieId: 2345,
-    reviewId: 3,
+    reviewId: '2',
     reviewerName: "Joe Bloggs",
     review: "This is an ok movie",
     rating: 3,
   },
   {
     movieId: 2345,
-    reviewId: 4,
+    reviewId: '4',
     reviewerName: "Alice Broggs",
     review: "This is a good movie",
     rating: 4,
